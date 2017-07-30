@@ -18,9 +18,16 @@ let Parser = require('./lib/parser');
 /**
  * Gloabl variable & default config
  */
-let prettyOpt = {'maxLength': 128, 'indent': 2};
-let parseConfig, destBase;
-let skipMode = true;
+let cowfigOpt = {
+  console: {
+    env: true,
+    progress: true
+  },
+  pretty: {
+    maxLength: 128,
+    indent: 2
+  }
+};
 
 
 /**
@@ -63,6 +70,8 @@ let usage = function (msg) {
 
 
 function entry(cwd, args) {
+  let parseConfig, destBase, skipMode = true;
+  let cowfigFileList;
 
   cwd = cwd || process.cwd() + '/';
   args = args || minimist(process.argv.slice(2));
@@ -97,54 +106,54 @@ function entry(cwd, args) {
     destBase = path.resolve(cwd, args.d) + '/';
 
 
-/**
- * step 2: find cowfig file in templateBase
- */
-let cowfigFileList = findCowfig(parseConfig.templateBase);
+  /**
+   * step 2: find cowfig file in templateBase
+   */
+  cowfigFileList = findCowfig(parseConfig.templateBase);
 
-/**
- * step 3: parse cowfig, write out .json
- */
-console.log("---\r");
-console.log("Cowfig-parser works with followed configuration:\r\n%j\r", parseConfig);
-//console.log(parseConfig+'\r');
-console.log("---\r");
 
-let parser = new Parser(parseConfig);
-
-for (let i = 0; i < cowfigFileList.length; i++) {
-  let content, destFile;
-  let data = parser.parseFile(cowfigFileList[i].fname);
-  if (data.__mtime > cowfigFileList[i].mtime)
-    cowfigFileList[i].mtime = data.__mtime;
-  delete data.__mtime;
-
-  if (data.__copy) {
-    content = data.__content;
-    destFile = destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
-  } else {
-    content = stringify(data, prettyOpt);
-    destFile = destBase + cowfigFileList[i].fname + '.json';
+  /**
+   * step 3: parse cowfig, write out .json
+   */
+  if (cowfigOpt.console.env) {
+    console.log('---\r');
+    console.log('Cowfig works with followed configuration:\r\n%j\r', parseConfig);
+    console.log('---\r');
   }
+  let parser = new Parser(parseConfig);
 
-  let destPath = path.dirname(destFile);
-  mkdirp.sync(destPath);
+  for (let i = 0; i < cowfigFileList.length; i++) {
+    let content, destFile;
+    let data = parser.parseFile(cowfigFileList[i].fname);
+    if (data.__mtime > cowfigFileList[i].mtime)
+      cowfigFileList[i].mtime = data.__mtime;
+    delete data.__mtime;
 
-  let skip = false;
-  try {
-    if (Date.parse(fs.statSync(destFile).mtime) > cowfigFileList[i].mtime)
-      skip = true;
-  } catch (e) {}
+    if (data.__copy) {
+      content = data.__content;
+      destFile = destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
+    } else {
+      content = stringify(data, cowfigOpt.pretty);
+      destFile = destBase + cowfigFileList[i].fname + '.json';
+    }
 
-  if (skipMode && skip) {
-    console.log('skip: %j\r', destFile);
+    let destPath = path.dirname(destFile);
+    mkdirp.sync(destPath);
+
+    let skip = false;
+    try {
+      if (Date.parse(fs.statSync(destFile).mtime) > cowfigFileList[i].mtime)
+        skip = true;
+    } catch (e) {}
+
+    if (skipMode && skip) {
+      console.log('skip: %j\r', destFile);
+    }
+    else {
+      console.log('writing: %j\r', destFile);
+      fs.writeFileSync(destFile, content);
+    }
   }
-  else {
-    console.log('writing: %j\r', destFile);
-    fs.writeFileSync(destFile, content);
-  }
-}
-
 };
 
 module.exports = entry();
