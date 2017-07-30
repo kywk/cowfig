@@ -1,0 +1,33 @@
+{
+  "name": "cowfig",
+  "version": "0.0.1",
+  "description": "a config/config.json generator",
+  "main": "index.js",
+  "bin": {
+    "cowfig": "./bin/cowfig"
+  },
+  "scripts": {
+    "test": "node test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kywk/cowfig.git"
+  },
+  "keywords": [
+    "config",
+    "insout"
+  ],
+  "author": "Moo Cow <kywk.id@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kywk/cowfig/issues"
+  },
+  "homepage": "https://github.com/kywk/cowfig#readme",
+  "dependencies": {
+    "json-stringify-pretty-compact": "^1.0.4",
+    "json5": "^0.5.1",
+    "mkdirp": "^0.5.1",
+    "traverse": "^0.6.6",
+    "xlsx": "^0.10.8"
+  }
+}
