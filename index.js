@@ -29,6 +29,8 @@ let cowfigOpt = {
   }
 };
 
+let plugins = [];
+
 
 /**
  * Common functions
@@ -80,6 +82,15 @@ function entry(cwd, args) {
   /**
    * Step 1: parse CLI arguments
    */
+  if (args._.length) {
+    for (let i = 0; i < plugins.length; i++) {
+      if (args._[0] === plugins[i].cmd)
+        plugins[i].exec(args);
+        return;
+    }
+    usage();
+  }
+
   if ((process.argv.length < 3) ||
       (args.h) || (args.help))
     usage();
