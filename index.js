@@ -13,20 +13,29 @@ let stringify = require('json-stringify-pretty-compact');
 
 // cowfig modules
 let Parser = require('./lib/parser');
+let override = require('./lib/util/override');
 
 
 /**
  * Gloabl variable & default config
  */
 let cowfigOpt = {
-  console: {
+  plugins: {
+    console: [],
+    util: []
+  },
+  consoleLog: {
     env: true,
     progress: true
   },
-  pretty: {
-    maxLength: 128,
-    indent: 2
-  }
+  generator: {
+    pretty: {
+      maxLength: 128,
+      indent: 2
+    },
+    destBase: process.cwd() + '/',
+    skipMode: true
+  },
 };
 
 let plugins = [];
@@ -61,8 +70,9 @@ let findCowfig = function (dir) {
 
 
 let usage = function (msg) {
+  console.log('');
   if (msg)
-    console.log(msg);
+    console.log('  ' + msg);
 
   console.log('');
   console.log('  Usage: cowfig.js [-f skipMode] [-t TEMPLATE_PATH] [-s RESOURCE_PATH] [-d DESTATION_PATH] [-e ENV]');
@@ -72,11 +82,26 @@ let usage = function (msg) {
 
 
 function entry(cwd, args) {
-  let parseConfig, destBase, skipMode = true;
+  let parseOpt, ccOpt;
   let cowfigFileList;
 
   cwd = cwd || process.cwd() + '/';
   args = args || minimist(process.argv.slice(2));
+
+  /**
+   * Step 0: Setup cowfig
+   */
+  if (args.c) {
+    try {
+      if (fs.statSync(args.c).isFile()) {
+        ccOpt = require(cwd + args.c);
+        override(cowfigOpt, ccOpt);
+      }
+    }
+    catch (e) {
+      usage('ERROR: config file (' + args.c + ') not found or not JSON format.');
+    }
+  }
 
 
   /**
@@ -95,43 +120,49 @@ function entry(cwd, args) {
       (args.h) || (args.help))
     usage();
 
-  // default configure
-  parseConfig = {
-    'templateBase': cwd + 'config/template/',
-    'srcBase': cwd + 'config/',
-    'env': process.env.NODE_ENV
+  // default configure for parser & generator
+  parseOpt = {
+    templateBase: cwd + 'config/template/',
+    srcBase: cwd + 'config/',
+    env: process.env.NODE_ENV
   };
-  destBase = parseConfig.srcBase;
 
   // overwrite configure via arguments
   // ref: https://goo.gl/2d1LYo
   if (args.f)
-    skipMode = false;
+    cowfigOpt.generator.skipMode = false;
   if (args.e)
-    parseConfig.env = args.e;
+    parseOpt.env = args.e;
   if (args.s)
-    parseConfig.srcBase = path.resolve(cwd, args.s) + '/';
+    parseOpt.srcBase = path.resolve(cwd, args.s) + '/';
   if (args.t)
-    parseConfig.templateBase = path.resolve(cwd, args.t) + '/';
+    parseOpt.templateBase = path.resolve(cwd, args.t) + '/';
   if (args.d)
-    destBase = path.resolve(cwd, args.d) + '/';
+    cowfigOpt.generator.destBase = path.resolve(cwd, args.d) + '/';
 
 
   /**
    * step 2: find cowfig file in templateBase
    */
-  cowfigFileList = findCowfig(parseConfig.templateBase);
+  try {
+    if (fs.statSync(parseOpt.templateBase)) {
+      cowfigFileList = findCowfig(parseOpt.templateBase);
+    }
+  }
+  catch (e) {
+    usage();
+  }
 
 
   /**
    * step 3: parse cowfig, write out .json
    */
-  if (cowfigOpt.console.env) {
+  if (cowfigOpt.consoleLog.env) {
     console.log('---\r');
-    console.log('Cowfig works with followed configuration:\r\n%j\r', parseConfig);
+    console.log('Cowfig works with followed configuration:\r\n%j\r', parseOpt);
     console.log('---\r');
   }
-  let parser = new Parser(parseConfig);
+  let parser = new Parser(parseOpt);
 
   for (let i = 0; i < cowfigFileList.length; i++) {
     let content, destFile;
@@ -142,10 +173,10 @@ function entry(cwd, args) {
 
     if (data.__copy) {
       content = data.__content;
-      destFile = destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
+      destFile = cowfigOpt.generator.destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
     } else {
-      content = stringify(data, cowfigOpt.pretty);
-      destFile = destBase + cowfigFileList[i].fname + '.json';
+      content = stringify(data, cowfigOpt.generator.pretty);
+      destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
     }
 
     let destPath = path.dirname(destFile);
@@ -157,7 +188,7 @@ function entry(cwd, args) {
         skip = true;
     } catch (e) {}
 
-    if (skipMode && skip) {
+    if (cowfigOpt.generator.skipMode && skip) {
       console.log('skip: %j\r', destFile);
     }
     else {
