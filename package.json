@@ -26,6 +26,7 @@
   "dependencies": {
     "json-stringify-pretty-compact": "^1.0.4",
     "json5": "^0.5.1",
+    "minimist": "^1.2.0",
     "mkdirp": "^0.5.1",
     "traverse": "^0.6.6",
     "xlsx": "^0.10.8"
