@@ -171,8 +171,10 @@ function entry(cwd, args) {
   let parser = new Parser(cowfigOpt.parser);
 
   for (let i = 0; i < cowfigFileList.length; i++) {
-    let content, destFile, destPath;
+    let destFile, destPath;
+    let content, pretty;
     let data = parser.parseFile(cowfigFileList[i].fname);
+
     if (data.__mtime > cowfigFileList[i].mtime)
       cowfigFileList[i].mtime = data.__mtime;
     delete data.__mtime;
@@ -194,7 +196,14 @@ function entry(cwd, args) {
         delete data.__copy;
     }
 
-    content = stringify(data, cowfigOpt.pretty);
+    // override template __pretty setting
+    if (data.__pretty) {
+      pretty = JSON.parse(JSON.stringify(data.__pretty));
+      delete data.__pretty;
+    }
+    else
+      pretty = cowfigOpt.generator.pretty;
+    content = stringify(data, pretty);
     destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
 
     destPath = path.dirname(destFile);
