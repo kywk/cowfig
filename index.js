@@ -171,13 +171,21 @@ function entry(cwd, args) {
       cowfigFileList[i].mtime = data.__mtime;
     delete data.__mtime;
 
+    // COPY file
     if (data.__copy) {
-      content = data.__content;
-      destFile = cowfigOpt.generator.destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
-    } else {
-      content = stringify(data, cowfigOpt.generator.pretty);
-      destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
+      for (let j = 0; j < data.__copy.length; j++) {
+        fs.createReadStream(data.__copy[j].src)
+          .pipe(fs.createWriteStream(cowfigOpt.generator.destBase + data.__copy[j].dest));
+      }
+
+      if (Object.getOwnPropertyNames(data).length == 1)
+        continue;
+      else
+        delete data.__copy;
     }
+
+    content = stringify(data, cowfigOpt.pretty);
+    destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
 
     let destPath = path.dirname(destFile);
     mkdirp.sync(destPath);
