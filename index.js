@@ -19,7 +19,9 @@ let override = require('./lib/util/override');
 /**
  * Gloabl variable & default config
  */
+const CWD = process.cwd() + '/';
 let cowfigOpt = {
+  env: process.env.NODE_ENV,
   plugins: {
     console: [],
     util: []
@@ -27,6 +29,11 @@ let cowfigOpt = {
   consoleLog: {
     env: true,
     progress: true
+  },
+  parser: {
+    templateBase: CWD + 'config/template/',
+    srcBase: CWD + 'config/',
+    override: 'override'
   },
   generator: {
     pretty: {
@@ -44,6 +51,10 @@ let plugins = [];
 /**
  * Common functions
  */
+
+/**
+ * find *.cowfig file under template
+ */
 let findCowfig = function (dir) {
   let result = [];
 
@@ -52,6 +63,8 @@ let findCowfig = function (dir) {
     let stat = fs.statSync(file);
 
     if (stat && stat.isDirectory()) {
+      if (file.match(/_/))
+        return;
       result = result.concat(findCowfig(file))
     }
     else {
@@ -70,22 +83,18 @@ let findCowfig = function (dir) {
 
 
 let usage = function (msg) {
-  console.log('');
   if (msg)
-    console.log('  ' + msg);
+    console.log(msg);
 
-  console.log('');
-  console.log('  Usage: cowfig.js [-f skipMode] [-t TEMPLATE_PATH] [-s RESOURCE_PATH] [-d DESTATION_PATH] [-e ENV]');
-  console.log('');
+  console.log('usage: cowfig.js [-f skipMode] [-t TEMPLATE_PATH] [-s RESOURCE_PATH] [-d DESTATION_PATH] [-e ENV]');
   process.exit(-1);
 };
 
 
 function entry(cwd, args) {
-  let parseOpt, ccOpt;
-  let cowfigFileList;
+  let ccOpt, cowfigFileList;
 
-  cwd = cwd || process.cwd() + '/';
+  cwd = cwd || CWD;
   args = args || minimist(process.argv.slice(2));
 
   /**
@@ -103,7 +112,6 @@ function entry(cwd, args) {
     }
   }
 
-
   /**
    * Step 1: parse CLI arguments
    */
@@ -120,33 +128,30 @@ function entry(cwd, args) {
       (args.h) || (args.help))
     usage();
 
-  // default configure for parser & generator
-  parseOpt = {
-    templateBase: cwd + 'config/template/',
-    srcBase: cwd + 'config/',
-    env: process.env.NODE_ENV
-  };
-
   // overwrite configure via arguments
   // ref: https://goo.gl/2d1LYo
   if (args.f)
     cowfigOpt.generator.skipMode = false;
   if (args.e)
-    parseOpt.env = args.e;
+    cowfigOpt.env = args.e;
   if (args.s)
-    parseOpt.srcBase = path.resolve(cwd, args.s) + '/';
+    cowfigOpt.parser.srcBase = args.s;
   if (args.t)
-    parseOpt.templateBase = path.resolve(cwd, args.t) + '/';
+    cowfigOpt.parser.templateBase = args.t;
   if (args.d)
-    cowfigOpt.generator.destBase = path.resolve(cwd, args.d) + '/';
+    cowfigOpt.generator.destBase = args.d;
 
+  // convert relative path to absolute
+  cowfigOpt.parser.srcBase = path.resolve(cowfigOpt.parser.srcBase) + '/';
+  cowfigOpt.parser.templateBase = path.resolve(cowfigOpt.parser.templateBase) + '/';
+  cowfigOpt.generator.destBase = path.resolve(cowfigOpt.generator.destBase) + '/';
 
   /**
    * step 2: find cowfig file in templateBase
    */
   try {
-    if (fs.statSync(parseOpt.templateBase)) {
-      cowfigFileList = findCowfig(parseOpt.templateBase);
+    if (fs.statSync(cowfigOpt.parser.templateBase)) {
+      cowfigFileList = findCowfig(cowfigOpt.parser.templateBase);
     }
   }
   catch (e) {
@@ -157,29 +162,52 @@ function entry(cwd, args) {
   /**
    * step 3: parse cowfig, write out .json
    */
+  cowfigOpt.parser.env = cowfigOpt.env;
   if (cowfigOpt.consoleLog.env) {
     console.log('---\r');
-    console.log('Cowfig works with followed configuration:\r\n%j\r', parseOpt);
+    console.log('Cowfig works with followed configuration:\r\n%j\r', cowfigOpt.parser);
     console.log('---\r');
   }
-  let parser = new Parser(parseOpt);
+  let parser = new Parser(cowfigOpt.parser);
 
   for (let i = 0; i < cowfigFileList.length; i++) {
-    let content, destFile;
+    let destFile, destPath;
+    let content, pretty;
     let data = parser.parseFile(cowfigFileList[i].fname);
+
     if (data.__mtime > cowfigFileList[i].mtime)
       cowfigFileList[i].mtime = data.__mtime;
     delete data.__mtime;
 
+    // COPY file
     if (data.__copy) {
-      content = data.__content;
-      destFile = cowfigOpt.generator.destBase + path.dirname(cowfigFileList[i].fname) + '/' + data.__copy;
-    } else {
-      content = stringify(data, cowfigOpt.generator.pretty);
-      destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
+      for (let j = 0; j < data.__copy.length; j++) {
+        destFile = cowfigOpt.generator.destBase + data.__copy[j].dest;
+        destPath = path.dirname(destFile);
+        mkdirp.sync(destPath);
+
+        console.log('copying: %j\r', destFile);
+        fs.createReadStream(data.__copy[j].src)
+          .pipe(fs.createWriteStream(destFile));
+      }
+
+      if (Object.getOwnPropertyNames(data).length == 1)
+        continue;
+      else
+        delete data.__copy;
     }
 
-    let destPath = path.dirname(destFile);
+    // override template __pretty setting
+    if (data.__pretty) {
+      pretty = JSON.parse(JSON.stringify(data.__pretty));
+      delete data.__pretty;
+    }
+    else
+      pretty = cowfigOpt.generator.pretty;
+    content = stringify(data, pretty);
+    destFile = cowfigOpt.generator.destBase + cowfigFileList[i].fname + '.json';
+
+    destPath = path.dirname(destFile);
     mkdirp.sync(destPath);
 
     let skip = false;
