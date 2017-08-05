@@ -186,6 +186,7 @@ function entry(cwd, args) {
         destPath = path.dirname(destFile);
         mkdirp.sync(destPath);
 
+        console.log('copying: %j\r', destFile);
         fs.createReadStream(data.__copy[j].src)
           .pipe(fs.createWriteStream(destFile));
       }
