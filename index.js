@@ -45,7 +45,8 @@ let cowfigOpt = {
       indent: 2
     },
     destBase: process.cwd() + '/',
-    skipMode: true
+    overwrite: "auto",
+    force: false
   },
 };
 
@@ -59,7 +60,7 @@ let usage = function (msg) {
   if (msg)
     console.log(msg);
 
-  console.log('usage: cowfig.js [-f skipMode] [-t TEMPLATE_PATH] [-s RESOURCE_PATH] [-d DESTATION_PATH] [-e ENV]');
+  console.log('usage: cowfig.js [-t TEMPLATE] [-s RESOURCE] [-d DESTATION] [-e ENV] [-o overwrite] [-f]');
   process.exit(-1);
 };
 
@@ -77,7 +78,7 @@ function entry(cwd, args) {
     try {
       if (fs.statSync(args.c).isFile()) {
         ccOpt = require(cwd + args.c);
-        override(cowfigOpt, ccOpt);
+        cowfigOpt = override(cowfigOpt, ccOpt);
       }
     }
     catch (e) {
@@ -103,16 +104,20 @@ function entry(cwd, args) {
 
   // overwrite configure via arguments
   // ref: https://goo.gl/2d1LYo
-  if (args.f)
-    cowfigOpt.writer.skipMode = false;
   if (args.e)
     cowfigOpt.env = args.e;
-  if (args.s)
-    cowfigOpt.parser.srcBase = args.s;
   if (args.t)
     cowfigOpt.parser.templateBase = args.t;
+  if (args.s)
+    cowfigOpt.parser.srcBase = args.s;
   if (args.d)
     cowfigOpt.writer.destBase = args.d;
+  if (args.o) {
+    if ((args.o === 'never') || (args.o === 'always'))
+      cowfigOpt.writer.overwrite = args.o;
+  }
+  if (args.f)
+    cowfigOpt.writer.force = true;
 
   // convert relative path to absolute
   cowfigOpt.parser.srcBase = path.resolve(cowfigOpt.parser.srcBase) + '/';
@@ -179,18 +184,26 @@ function entry(cwd, args) {
     destPath = path.dirname(destFile);
     mkdirp.sync(destPath);
 
-    let skip = false;
-    try {
-      if (Date.parse(fs.statSync(destFile).mtime) > cowfigFileList[i].mtime)
-        skip = true;
-    } catch (e) {}
-
-    if (cowfigOpt.writer.skipMode && skip) {
-      console.log('skip: %j\r', destFile);
-    }
-    else {
+    // Check if overwrite exist destation file
+    if ((writerOpt.overwrite === 'always') || (writerOpt.force)) {
       console.log('writing: %j\r', destFile);
       fs.writeFileSync(destFile, content);
+    }
+    else {
+      try {
+        if ((Date.parse(fs.statSync(destFile).mtime) < cowfigFileList[i].mtime) &&
+            (writerOpt.overwrite === 'auto')) {
+          console.log('writing: %j\r', destFile);
+          fs.writeFileSync(destFile, content);
+        }
+        else {
+          console.log('skipping: %j\r', destFile);
+        }
+      }
+      catch (e) {
+        console.log('writing: %j\r', destFile);
+        fs.writeFileSync(destFile, content);
+      }
     }
   }
 };
