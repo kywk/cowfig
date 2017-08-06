@@ -141,7 +141,7 @@ function entry(cwd, args) {
 
   for (let i = 0; i < cowfigFileList.length; i++) {
     let destFile, destPath;
-    let content, pretty;
+    let content, writerOpt;
     let data = parser.parseFile(cowfigFileList[i].fname);
 
     if (data.__mtime > cowfigFileList[i].mtime)
@@ -166,14 +166,14 @@ function entry(cwd, args) {
         delete data.__copy;
     }
 
-    // override template __pretty setting
-    if (data.__pretty) {
-      pretty = JSON.parse(JSON.stringify(data.__pretty));
-      delete data.__pretty;
+    // override writer setting
+    if (data.__writer) {
+      writerOpt = override(cowfigOpt.writer, data.__writer);
+      delete data.__writer;
     }
     else
-      pretty = cowfigOpt.writer.pretty;
-    content = stringify(data, pretty);
+      writerOpt = cowfigOpt.writer;
+    content = stringify(data, writerOpt.pretty);
     destFile = cowfigOpt.writer.destBase + cowfigFileList[i].fname + '.json';
 
     destPath = path.dirname(destFile);
