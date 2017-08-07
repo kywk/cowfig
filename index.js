@@ -11,6 +11,9 @@ let mkdirp = require('mkdirp');
 let minimist = require('minimist');
 let stringify = require('json-stringify-pretty-compact');
 
+let JSON5 = require('json5');
+let traverse = require('traverse');
+
 // cowfig modules
 let Parser = require('./lib/parser');
 let finder = require('./lib/finder');
@@ -60,8 +63,19 @@ let usage = function (msg) {
   if (msg)
     console.log(msg);
 
-  console.log('usage: cowfig.js [-t TEMPLATE] [-s RESOURCE] [-d DESTATION] [-e ENV] [-o overwrite] [-f]');
+  console.log('usage: cowfig.js [-t TEMPLATE] [-s RESOURCE] [-d DESTINATION] [-e ENV] [-o overwrite] [-f]');
   process.exit(-1);
+};
+
+
+let fileWriter = function (file, data, pretty) {
+  let content = stringify(data, pretty);
+  let destPath = path.dirname(file);
+  mkdirp(destPath);
+
+  console.log('writing: %j\r', file);
+  fs.writeFileSync(file, content);
+  return;
 };
 
 
@@ -145,7 +159,7 @@ function entry(cwd, args) {
   let parser = new Parser(cowfigOpt.parser);
 
   for (let i = 0; i < cowfigFileList.length; i++) {
-    let destFile, destPath;
+    let destFile, destPath, destMtime = 0;
     let content, writerOpt;
     let data = parser.parseFile(cowfigFileList[i].fname);
 
@@ -171,6 +185,23 @@ function entry(cwd, args) {
         delete data.__copy;
     }
 
+    // keep destination
+    try {
+      let destData, destObj;
+      destFile = path.resolve(cowfigOpt.writer.destBase, cowfigFileList[i].fname + '.json');
+      destMtime = Date.parse(fs.statSync(destFile).mtime);
+
+      if ((data.__writer) && (data.__writer.keep)) {
+        destData = JSON5.parse(fs.readFileSync(destFile, 'utf8'));
+        for (let j = 0; j < data.__writer.keep.length; j++) {
+          destObj = traverse(destData).get(data.__writer.keep[j].split('.'));
+          if (destObj !== 'undefined')
+            traverse(data).set(data.__writer.keep[j].split('.'), destObj);
+        }
+      }
+    }
+    catch (e) { /* console.log(e); */ }
+
     // override writer setting
     if (data.__writer) {
       writerOpt = override(cowfigOpt.writer, data.__writer);
@@ -178,33 +209,13 @@ function entry(cwd, args) {
     }
     else
       writerOpt = cowfigOpt.writer;
-    content = stringify(data, writerOpt.pretty);
-    destFile = cowfigOpt.writer.destBase + cowfigFileList[i].fname + '.json';
 
-    destPath = path.dirname(destFile);
-    mkdirp.sync(destPath);
-
-    // Check if overwrite exist destation file
-    if ((writerOpt.overwrite === 'always') || (writerOpt.force)) {
-      console.log('writing: %j\r', destFile);
-      fs.writeFileSync(destFile, content);
-    }
-    else {
-      try {
-        if ((Date.parse(fs.statSync(destFile).mtime) < cowfigFileList[i].mtime) &&
-            (writerOpt.overwrite === 'auto')) {
-          console.log('writing: %j\r', destFile);
-          fs.writeFileSync(destFile, content);
-        }
-        else {
-          console.log('skipping: %j\r', destFile);
-        }
-      }
-      catch (e) {
-        console.log('writing: %j\r', destFile);
-        fs.writeFileSync(destFile, content);
-      }
-    }
+    // Check if overwrite exist destination file
+    if (((destMtime > cowfigFileList[i].mtime) && (writerOpt.overwrite === 'auto')) ||
+        ((destMtime != 0) && (writerOpt.overwrite === 'never')))
+      console.log('skipping: %j\r', destFile);
+    else
+      fileWriter(destFile, data, writerOpt.pretty);
   }
 };
 
