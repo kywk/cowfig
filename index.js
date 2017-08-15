@@ -26,6 +26,8 @@ let override = require('./lib/util/override');
 const CWD = process.cwd() + '/';
 let cowfigOpt = {
   env: process.env.NODE_ENV,
+  envPrefix: '_',
+  templateBase: CWD + 'config/template/',
   plugins: {
     console: [],
     util: []
@@ -35,10 +37,9 @@ let cowfigOpt = {
     progress: true
   },
   finder: {
-    envPrefix: '_'
+    ignore: ['EXAMPLE']
   },
   parser: {
-    templateBase: CWD + 'config/template/',
     srcBase: CWD + 'config/',
     override: 'override'
   },
@@ -122,7 +123,7 @@ function entry(cwd, args) {
   if (args.e)
     cowfigOpt.env = args.e;
   if (args.t)
-    cowfigOpt.parser.templateBase = args.t;
+    cowfigOpt.templateBase = args.t;
   if (args.s)
     cowfigOpt.parser.srcBase = args.s;
   if (args.d)
@@ -136,14 +137,15 @@ function entry(cwd, args) {
 
   // convert relative path to absolute
   cowfigOpt.parser.srcBase = path.resolve(cowfigOpt.parser.srcBase) + '/';
-  cowfigOpt.parser.templateBase = path.resolve(cowfigOpt.parser.templateBase) + '/';
+  cowfigOpt.templateBase = path.resolve(cowfigOpt.templateBase) + '/';
   cowfigOpt.writer.destBase = path.resolve(cowfigOpt.writer.destBase) + '/';
 
 
   /**
    * step 2: find cowfig file in templateBase
    */
-  cowfigFileList = finder(cowfigOpt.parser.templateBase, cowfigOpt.finder.envPrefix);
+  cowfigOpt.finder.envPrefix = cowfigOpt.envPrefix;
+  cowfigFileList = finder(cowfigOpt.templateBase, cowfigOpt.finder);
   if (!cowfigFileList)
     usage();
 
@@ -152,6 +154,8 @@ function entry(cwd, args) {
    * step 3: parse cowfig, write out .json
    */
   cowfigOpt.parser.env = cowfigOpt.env;
+  cowfigOpt.parser.templateBase = cowfigOpt.templateBase;
+  cowfigOpt.parser.envPrefix = cowfigOpt.envPrefix;
   if (cowfigOpt.consoleLog.env) {
     console.log('---\r');
     console.log('Cowfig works with followed configuration:\r\n%j\r', cowfigOpt.parser);
