@@ -49,6 +49,7 @@ let cowfigOpt = {
     },
     destBase: process.cwd() + '/',
     overwrite: "auto",
+    emptyObj: false,
     force: false
   },
 };
@@ -179,10 +180,7 @@ function entry(cwd, args) {
           .pipe(fs.createWriteStream(destFile));
       }
 
-      if (Object.getOwnPropertyNames(data).length == 1)
-        continue;
-      else
-        delete data.__copy;
+      delete data.__copy;
     }
 
     // keep destination
@@ -210,10 +208,13 @@ function entry(cwd, args) {
     else
       writerOpt = cowfigOpt.writer;
 
+    // Check if empty object
+    if ((Object.getOwnPropertyNames(data).length == 0) && (!writerOpt.emptyObj))
+      console.log('skip empty file: %j\r', destFile);
     // Check if overwrite exist destination file
-    if (((destMtime > cowfigFileList[i].mtime) && (writerOpt.overwrite === 'auto')) ||
-        ((destMtime != 0) && (writerOpt.overwrite === 'never')))
-      console.log('skipping: %j\r', destFile);
+    else if (((destMtime > cowfigFileList[i].mtime) && (writerOpt.overwrite === 'auto')) ||
+             ((destMtime != 0) && (writerOpt.overwrite === 'never')))
+      console.log('skip newer file: %j\r', destFile);
     else
       fileWriter(destFile, data, writerOpt.pretty);
   }
