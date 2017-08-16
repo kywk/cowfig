@@ -26,6 +26,8 @@ let override = require('./lib/util/override');
 const CWD = process.cwd() + '/';
 let cowfigOpt = {
   env: process.env.NODE_ENV,
+  envPrefix: '_',
+  templateBase: CWD + 'config/template/',
   plugins: {
     console: [],
     util: []
@@ -35,10 +37,9 @@ let cowfigOpt = {
     progress: true
   },
   finder: {
-    envPrefix: '_'
+    ignore: ['EXAMPLE']
   },
   parser: {
-    templateBase: CWD + 'config/template/',
     srcBase: CWD + 'config/',
     override: 'override'
   },
@@ -49,6 +50,7 @@ let cowfigOpt = {
     },
     destBase: process.cwd() + '/',
     overwrite: "auto",
+    emptyObj: false,
     force: false
   },
 };
@@ -121,7 +123,7 @@ function entry(cwd, args) {
   if (args.e)
     cowfigOpt.env = args.e;
   if (args.t)
-    cowfigOpt.parser.templateBase = args.t;
+    cowfigOpt.templateBase = args.t;
   if (args.s)
     cowfigOpt.parser.srcBase = args.s;
   if (args.d)
@@ -135,14 +137,15 @@ function entry(cwd, args) {
 
   // convert relative path to absolute
   cowfigOpt.parser.srcBase = path.resolve(cowfigOpt.parser.srcBase) + '/';
-  cowfigOpt.parser.templateBase = path.resolve(cowfigOpt.parser.templateBase) + '/';
+  cowfigOpt.templateBase = path.resolve(cowfigOpt.templateBase) + '/';
   cowfigOpt.writer.destBase = path.resolve(cowfigOpt.writer.destBase) + '/';
 
 
   /**
    * step 2: find cowfig file in templateBase
    */
-  cowfigFileList = finder(cowfigOpt.parser.templateBase, cowfigOpt.finder.envPrefix);
+  cowfigOpt.finder.envPrefix = cowfigOpt.envPrefix;
+  cowfigFileList = finder(cowfigOpt.templateBase, cowfigOpt.finder);
   if (!cowfigFileList)
     usage();
 
@@ -151,6 +154,8 @@ function entry(cwd, args) {
    * step 3: parse cowfig, write out .json
    */
   cowfigOpt.parser.env = cowfigOpt.env;
+  cowfigOpt.parser.templateBase = cowfigOpt.templateBase;
+  cowfigOpt.parser.envPrefix = cowfigOpt.envPrefix;
   if (cowfigOpt.consoleLog.env) {
     console.log('---\r');
     console.log('Cowfig works with followed configuration:\r\n%j\r', cowfigOpt.parser);
@@ -179,10 +184,7 @@ function entry(cwd, args) {
           .pipe(fs.createWriteStream(destFile));
       }
 
-      if (Object.getOwnPropertyNames(data).length == 1)
-        continue;
-      else
-        delete data.__copy;
+      delete data.__copy;
     }
 
     // keep destination
@@ -210,10 +212,13 @@ function entry(cwd, args) {
     else
       writerOpt = cowfigOpt.writer;
 
+    // Check if empty object
+    if ((Object.getOwnPropertyNames(data).length == 0) && (!writerOpt.emptyObj))
+      console.log('skip empty file: %j\r', destFile);
     // Check if overwrite exist destination file
-    if (((destMtime > cowfigFileList[i].mtime) && (writerOpt.overwrite === 'auto')) ||
-        ((destMtime != 0) && (writerOpt.overwrite === 'never')))
-      console.log('skipping: %j\r', destFile);
+    else if (((destMtime > cowfigFileList[i].mtime) && (writerOpt.overwrite === 'auto')) ||
+             ((destMtime != 0) && (writerOpt.overwrite === 'never')))
+      console.log('skip newer file: %j\r', destFile);
     else
       fileWriter(destFile, data, writerOpt.pretty);
   }
