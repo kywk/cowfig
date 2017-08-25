@@ -37,7 +37,7 @@ let cowfigOpt = {
     ignore: ['EXAMPLE']
   },
   parser: {
-    srcBase: CWD + 'config/',
+    srcBase: CWD + 'config/source/',
     override: 'override'
   },
   writer: {
@@ -49,10 +49,14 @@ let cowfigOpt = {
     overwrite: "auto",
     emptyObj: false,
     force: false
-  },
+  }
 };
 
-let plugins = [];
+let plugins = {
+  console: [
+    {cmd: 'file', exec: require('./lib/console/file')}
+  ]
+};
 
 
 /**
@@ -63,7 +67,7 @@ let usage = function (msg) {
     console.log(msg);
 
   console.log('usage: cowfig.js [-t TEMPLATE] [-s RESOURCE] [-d DESTINATION] [-e ENV] [-o overwrite] [-f]');
-  process.exit(-1);
+  process.exit(0);
 };
 
 
@@ -92,9 +96,9 @@ function entry(cwd, args) {
    * Step 1: parse CLI arguments
    */
   if (args._.length) {
-    for (let i = 0; i < plugins.length; i++) {
-      if (args._[0] === plugins[i].cmd)
-        plugins[i].exec(args);
+    for (let i = 0; i < plugins.console.length; i++) {
+      if (args._[0] === plugins.console[i].cmd)
+        plugins.console[i].exec(args);
         return;
     }
     usage();
