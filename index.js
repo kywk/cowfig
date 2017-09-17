@@ -25,6 +25,7 @@ let cowfigOpt = {
   env: process.env.NODE_ENV,
   envPrefix: '_',
   templateBase: CWD + 'config/template/',
+  // TODO: plugins under construction
   plugins: {
     console: [],
     util: []
@@ -54,7 +55,8 @@ let cowfigOpt = {
 
 let plugins = {
   console: [
-    {cmd: 'file', exec: require('./lib/console/file')}
+    {cmd: 'file', exec: require('./lib/console/file')},
+    {cmd: 'clean', exec: require('./lib/console/clean')}
   ]
 };
 
@@ -79,7 +81,17 @@ function entry(cwd, args) {
 
   /**
    * Step 0: Setup cowfig
+   *         load ./env.json for default config if exist
+   *         overload args.c.json
    */
+  try {
+    if (fs.statSync(cwd + 'env.json').isFile()) {
+      ccOpt = require(cwd + 'env.json');
+      cowfigOpt = override(cowfigOpt, ccOpt);
+    }
+  }
+  catch (e) {}
+
   if (args.c) {
     try {
       if (fs.statSync(args.c).isFile()) {
@@ -97,9 +109,10 @@ function entry(cwd, args) {
    */
   if (args._.length) {
     for (let i = 0; i < plugins.console.length; i++) {
-      if (args._[0] === plugins.console[i].cmd)
-        plugins.console[i].exec(args);
+      if (args._[0] === plugins.console[i].cmd) {
+        plugins.console[i].exec(args, cowfigOpt);
         return;
+      }
     }
     usage();
   }
@@ -136,7 +149,7 @@ function entry(cwd, args) {
    */
   cowfigOpt.finder.envPrefix = cowfigOpt.envPrefix;
   cowfigFileList = finder(cowfigOpt.templateBase, cowfigOpt.finder);
-  if (!cowfigFileList)
+  if ((!cowfigFileList) || (cowfigFileList.length == 0))
     usage();
 
 
