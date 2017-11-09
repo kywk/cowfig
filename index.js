@@ -46,8 +46,8 @@ let cowfigOpt = {
       maxLength: 128,
       indent: 2
     },
-    destBase: process.cwd() + '/',
-    overwrite: "auto",
+    destBase: CWD,
+    overwrite: 'auto',
     emptyObj: false,
     force: false
   }

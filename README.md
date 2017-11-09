@@ -2,18 +2,18 @@ Cowfig
 ======
 Cowfig in a JSON format template parser to generate config.json files.
 
-JSON file is easy to use for a developer, but hard to read & maintenance for non-developer.
+JSON file is easy to use for a developer, but hard for non-developer.
 
 In most real cases, project always co-works with some non-RD team. 
-They are used to use excel file to evaluate value set is suitable.
+They are used to use Excel file to evaluate value set.
 JSON file is too hard to read and maintenance for them.
 A tool to translate excel to JSON config file is necessary.
 
-Also, different develop staging uses different value set. Ex: IP, port, account ... etc.
+Also, different develop staging uses different setting. Ex: IP, port, account ... etc.
 It also needs a config management tools.
 
 Cowfig is a JSON format template parser.
-It parse excel, JSON files, provides _query_ method to get value set.
+It parse Excel, JSON, YAML files, provides _query_ method to get value set.
 
 Developer write the cowfig template files. 
 Cowfig take care Excel parsing, different environment value set maping 
