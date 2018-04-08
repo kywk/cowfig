@@ -1,6 +1,10 @@
-Cowfig Template format & features
-=================================
+Template format & features
+==========================
 
+Cowfig template is a JSON format content. Coeing a cowfig template is easy 
+as a standard JSON file. Cowfig uses [JSON5](http://json5.org/) parser. 
+Thus, you can write a regular JSON file or use some extend features such 
+like comments, single-quoted string, ... etc.
 
 Template format
 ---------------
@@ -9,25 +13,28 @@ Template format
 ### Sample Example ###
 
 
-File parser plugin
-------------------
+Customize scripts
+-----------------
 
--   [Plugin API](#)
+### __\_\_macro__: macro ###
 
-### built-in file format parser ###
+### __\_\_post__: post process ###
 
--   [JSON, JSON5 (.json, .json5)](#)
--   [Excel (.xlsx)](#)
-
-
-Built-in features & keywords
-----------------------------
-
-
-### Customize scripts ###
-
-#### \__macro Macro ####
+### __\_\_alias__: source file alias ###
 
 
 
-#### \__post Post process ####
+Writer options
+--------------
+
+### __\_\_copy__: copy file ###
+
+### __\_\_writer__: override cowfig writer options ###
+
+Override 
+See [CowfigOpt] for detail 
+
+Parser options
+--------------
+
+### __\_\_for\_\___: ###
