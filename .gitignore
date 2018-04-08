@@ -166,7 +166,7 @@ build/Release
 node_modules/
 jspm_packages/
 
-# Typescript v1 declaration files
+# TypeScript v1 declaration files
 typings/
 
 # Optional npm cache directory
@@ -187,6 +187,8 @@ typings/
 # dotenv environment variables file
 .env
 
+# next.js build output
+.next
 
 yarn.lock
 
