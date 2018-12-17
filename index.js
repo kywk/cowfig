@@ -8,7 +8,7 @@ let path = require('path')
 let minimist = require('minimist')
 
 /* cowfig core modules */
-let Parser = require('./lib/parser')
+let parserBuilder = require('./lib/parser')
 let finder = require('./lib/finder')
 let writer = require('./lib/writer')
 
@@ -55,7 +55,7 @@ let cowfigOpt = {
 let plugins = {
   console: [
     {cmd: 'file', exec: require('./lib/console/file')},
-    {cmd: 'clean', exec: require('./lib/console/clean')}
+    {cmd: 'cleanup', exec: require('./lib/console/clean')}
   ]
 }
 
@@ -63,7 +63,7 @@ let plugins = {
 /*
  * Common functions
  */
-let usage = function (msg) {
+let usage = (msg) => {
   if (msg)
     console.log(msg)
 
@@ -72,7 +72,7 @@ let usage = function (msg) {
 }
 
 
-function entry(cwd, args) {
+let entry = async (cwd, args) => {
   let ccOpt, cowfigFileList
 
   cwd = cwd || CWD
@@ -163,11 +163,13 @@ function entry(cwd, args) {
     console.log('Cowfig works with followed configuration:\r\n%j\r', cowfigOpt.parser)
     console.log('---\r')
   }
-  let parser = new Parser(cowfigOpt.parser)
+
+  let parser = parserBuilder(cowfigOpt.parser)
+  await parser.init()
 
   /* parse file in list, write out */
   for (let i = 0; i < cowfigFileList.length; i++) {
-    let data = parser.parseFile(cowfigFileList[i].fname)
+    let data = await parser.parseFile(cowfigFileList[i].fname)
 
     if (data.__mtime > cowfigFileList[i].mtime)
       cowfigFileList[i].mtime = data.__mtime
